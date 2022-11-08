@@ -8,7 +8,6 @@ LFS458 및 LFD459 실습 환경 생성을 위한 테라폼 코드
  ```
  e.g.
  terraform apply -var="number_of_stduents=10"
- 
  ```
  
 ## 생성된 실습환경 정보 확인
