@@ -134,7 +134,10 @@ data "aws_ami" "ubuntu" {
 
 resource "aws_instance" "instructor_cp" {
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.medium"
+  instance_type = "t3.large"
+  root_block_device {
+    volume_size = 20
+  }
   subnet_id     = aws_subnet.this.id
   vpc_security_group_ids = [
     aws_security_group.this.id
@@ -160,7 +163,10 @@ resource "aws_instance" "student_cp" {
   count = var.number_of_stduents
 
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.medium"
+  instance_type = "t3.large"
+  root_block_device {
+    volume_size = 20
+  }
   subnet_id     = aws_subnet.this.id
   vpc_security_group_ids = [
     aws_security_group.this.id
@@ -184,7 +190,10 @@ EOF
 
 resource "aws_instance" "instructor_worker" {
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.medium"
+  instance_type = "t3.large"
+  root_block_device {
+    volume_size = 20
+  }
   subnet_id     = aws_subnet.this.id
   vpc_security_group_ids = [
     aws_security_group.this.id
@@ -209,7 +218,10 @@ resource "aws_instance" "student_worker" {
   count = var.number_of_stduents
 
   ami           = data.aws_ami.ubuntu.id
-  instance_type = "t3.medium"
+  instance_type = "t3.large"
+  root_block_device {
+    volume_size = 20
+  }
   subnet_id     = aws_subnet.this.id
   vpc_security_group_ids = [
     aws_security_group.this.id
