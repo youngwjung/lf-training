@@ -36,7 +36,7 @@ resource "aws_iam_user_policy_attachment" "instructor" {
 
 resource "aws_iam_user_policy_attachment" "student" {
   count = var.number_of_stduents
-  
+
   user       = aws_iam_user.student[count.index].name
   policy_arn = "arn:aws:iam::aws:policy/AWSCloud9User"
 }
@@ -84,6 +84,8 @@ resource "aws_cloud9_environment_ec2" "instructor" {
   name          = "instructor"
   owner_arn     = aws_iam_user.instructor.arn
   subnet_id     = aws_subnet.this.id
+
+  automatic_stop_time_minutes = 30
 }
 
 resource "aws_cloud9_environment_ec2" "student" {
@@ -93,6 +95,8 @@ resource "aws_cloud9_environment_ec2" "student" {
   name          = aws_iam_user.student[count.index].name
   owner_arn     = aws_iam_user.student[count.index].arn
   subnet_id     = aws_subnet.this.id
+
+  automatic_stop_time_minutes = 30
 }
 
 # EC2
@@ -138,7 +142,7 @@ resource "aws_instance" "instructor_cp" {
   root_block_device {
     volume_size = 20
   }
-  subnet_id     = aws_subnet.this.id
+  subnet_id = aws_subnet.this.id
   vpc_security_group_ids = [
     aws_security_group.this.id
   ]
@@ -167,7 +171,7 @@ resource "aws_instance" "student_cp" {
   root_block_device {
     volume_size = 20
   }
-  subnet_id     = aws_subnet.this.id
+  subnet_id = aws_subnet.this.id
   vpc_security_group_ids = [
     aws_security_group.this.id
   ]
@@ -194,7 +198,7 @@ resource "aws_instance" "instructor_worker" {
   root_block_device {
     volume_size = 20
   }
-  subnet_id     = aws_subnet.this.id
+  subnet_id = aws_subnet.this.id
   vpc_security_group_ids = [
     aws_security_group.this.id
   ]
@@ -222,7 +226,7 @@ resource "aws_instance" "student_worker" {
   root_block_device {
     volume_size = 20
   }
-  subnet_id     = aws_subnet.this.id
+  subnet_id = aws_subnet.this.id
   vpc_security_group_ids = [
     aws_security_group.this.id
   ]
@@ -255,7 +259,7 @@ output "student_password" {
 
 output "instructor_instances" {
   value = {
-    cp = aws_instance.instructor_cp.public_ip
+    cp     = aws_instance.instructor_cp.public_ip
     worker = aws_instance.instructor_worker.public_ip
   }
 }
@@ -263,7 +267,7 @@ output "instructor_instances" {
 output "student_instances" {
   value = {
     for k, student in aws_iam_user.student : student.name => {
-      cp = aws_instance.student_cp[k].public_ip
+      cp     = aws_instance.student_cp[k].public_ip
       worker = aws_instance.student_worker[k].public_ip
     }
   }
