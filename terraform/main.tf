@@ -161,6 +161,10 @@ EOF
   tags = {
     Name = "instructor_cp"
   }
+  
+  lifecycle {
+    ignore_changes = [ami]
+  }
 }
 
 resource "aws_instance" "student_cp" {
@@ -190,6 +194,10 @@ EOF
   tags = {
     Name = "student${count.index + 1}_cp"
   }
+  
+  lifecycle {
+    ignore_changes = [ami]
+  }
 }
 
 resource "aws_instance" "instructor_worker" {
@@ -215,6 +223,10 @@ EOF
 
   tags = {
     Name = "instructor_worker"
+  }
+  
+  lifecycle {
+    ignore_changes = [ami]
   }
 }
 
@@ -243,6 +255,10 @@ EOF
 
   tags = {
     Name = "student${count.index + 1}_worker"
+  }
+  
+  lifecycle {
+    ignore_changes = [ami]
   }
 }
 
