@@ -12,6 +12,17 @@ provider "aws" {
   region = "ap-northeast-2"
 }
 
+# Variable
+variable "nfs" {
+  type    = bool
+  default = false
+}
+
+variable "ha" {
+  type    = bool
+  default = true
+}
+
 # Network
 resource "aws_vpc" "this" {
   cidr_block           = "10.0.0.0/16"
@@ -87,12 +98,10 @@ resource "aws_instance" "cp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname cp
-adduser --quiet --disabled-password --shell /bin/bash --home /home/student --gecos 'Student' student
-echo 'student:asdf1234' | chpasswd
+echo 'root:asdf1234' | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
-usermod -aG sudo student
-echo 'student ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 apt update && apt install -y jq
 EOF
 
@@ -118,12 +127,10 @@ resource "aws_instance" "worker" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname worker
-adduser --quiet --disabled-password --shell /bin/bash --home /home/student --gecos 'Student' student
-echo 'student:asdf1234' | chpasswd
+echo 'root:asdf1234' | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
-usermod -aG sudo student
-echo 'student ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 EOF
 
   tags = {
@@ -135,11 +142,134 @@ EOF
   }
 }
 
-# Output
-output "cp_ip_address" {
-  value = aws_instance.cp.public_ip
+resource "aws_instance" "nfs" {
+  count = var.nfs ? 1 : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname nfs
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "nfs"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
 }
 
-output "worker_ip_address" {
-  value = aws_instance.worker.public_ip
+resource "aws_instance" "haproxy" {
+  count = var.ha ? 1 : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname haproxy
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "haproxy"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+resource "aws_instance" "secondcp" {
+  count = var.ha ? 1 : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.large"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname secondcp
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "secondcp"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+resource "aws_instance" "thirdcp" {
+  count = var.ha ? 1 : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.large"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname thirdcp
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "thirdcp"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+# Output
+output "instances" {
+  value = {
+    cp       = aws_instance.cp.public_ip
+    worker   = aws_instance.worker.public_ip
+    nfs      = var.nfs ? aws_instance.nfs[0].public_ip : null
+    haproxy  = var.ha ? aws_instance.haproxy[0].public_ip : null
+    secondcp = var.ha ? aws_instance.secondcp[0].public_ip : null
+    thirdcp  = var.ha ? aws_instance.thirdcp[0].public_ip : null
+  }
 }

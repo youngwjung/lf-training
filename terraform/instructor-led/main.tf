@@ -15,7 +15,17 @@ provider "aws" {
 # Variable
 variable "number_of_stduents" {
   type    = number
-  default = 1
+  default = 11
+}
+
+variable "nfs" {
+  type    = bool
+  default = false
+}
+
+variable "ha" {
+  type    = bool
+  default = true
 }
 
 # IAM
@@ -149,19 +159,17 @@ resource "aws_instance" "instructor_cp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname cp
-adduser --quiet --disabled-password --shell /bin/bash --home /home/student --gecos 'Student' student
-echo 'student:asdf1234' | chpasswd
+echo 'root:asdf1234' | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
-usermod -aG sudo student
-echo 'student ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 apt update && apt install -y jq
 EOF
 
   tags = {
     Name = "instructor_cp"
   }
-  
+
   lifecycle {
     ignore_changes = [ami]
   }
@@ -182,19 +190,17 @@ resource "aws_instance" "student_cp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname cp
-adduser --quiet --disabled-password --shell /bin/bash --home /home/student --gecos 'Student' student
-echo 'student:asdf1234' | chpasswd
+echo 'root:asdf1234' | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
-usermod -aG sudo student
-echo 'student ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 apt update && apt install -y jq
 EOF
 
   tags = {
     Name = "student${count.index + 1}_cp"
   }
-  
+
   lifecycle {
     ignore_changes = [ami]
   }
@@ -213,18 +219,16 @@ resource "aws_instance" "instructor_worker" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname worker
-adduser --quiet --disabled-password --shell /bin/bash --home /home/student --gecos 'Student' student
-echo 'student:asdf1234' | chpasswd
+echo 'root:asdf1234' | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
-usermod -aG sudo student
-echo 'student ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 EOF
 
   tags = {
     Name = "instructor_worker"
   }
-  
+
   lifecycle {
     ignore_changes = [ami]
   }
@@ -245,18 +249,256 @@ resource "aws_instance" "student_worker" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname worker
-adduser --quiet --disabled-password --shell /bin/bash --home /home/student --gecos 'Student' student
-echo 'student:asdf1234' | chpasswd
+echo 'root:asdf1234' | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
-usermod -aG sudo student
-echo 'student ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 EOF
 
   tags = {
     Name = "student${count.index + 1}_worker"
   }
-  
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+resource "aws_instance" "instructor_nfs" {
+  count = var.nfs ? 1 : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname nfs
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "instructor_nfs"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+resource "aws_instance" "student_nfs" {
+  count = var.nfs ? var.number_of_stduents : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname nfs
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "student${count.index + 1}_nfs"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+resource "aws_instance" "instructor_haproxy" {
+  count = var.ha ? 1 : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname haproxy
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "instructor_haproxy"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+resource "aws_instance" "student_haproxy" {
+  count = var.ha ? var.number_of_stduents : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.micro"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname haproxy
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "student${count.index + 1}_haproxy"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+resource "aws_instance" "instructor_secondcp" {
+  count = var.ha ? 1 : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.large"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname secondcp
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "instructor_secondcp"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+resource "aws_instance" "student_secondcp" {
+  count = var.ha ? var.number_of_stduents : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.large"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname secondcp
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "student${count.index + 1}_secondcp"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+resource "aws_instance" "instructor_thirdcp" {
+  count = var.ha ? 1 : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.large"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname thirdcp
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "instructor_thirdcp"
+  }
+
+  lifecycle {
+    ignore_changes = [ami]
+  }
+}
+
+resource "aws_instance" "student_thirdcp" {
+  count = var.ha ? var.number_of_stduents : 0
+
+  ami           = data.aws_ami.ubuntu.id
+  instance_type = "t3.large"
+  root_block_device {
+    volume_size = 20
+  }
+  subnet_id = aws_subnet.this.id
+  vpc_security_group_ids = [
+    aws_security_group.this.id
+  ]
+  user_data = <<EOF
+#!/bin/bash
+hostnamectl set-hostname thirdcp
+echo 'root:asdf1234' | chpasswd
+sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
+sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
+systemctl restart sshd
+EOF
+
+  tags = {
+    Name = "student${count.index + 1}_thirdcp"
+  }
+
   lifecycle {
     ignore_changes = [ami]
   }
@@ -275,16 +517,24 @@ output "student_password" {
 
 output "instructor_instances" {
   value = {
-    cp     = aws_instance.instructor_cp.public_ip
-    worker = aws_instance.instructor_worker.public_ip
+    cp       = aws_instance.instructor_cp.public_ip
+    worker   = aws_instance.instructor_worker.public_ip
+    nfs      = var.nfs ? aws_instance.instructor_nfs[0].public_ip : null
+    haproxy  = var.ha ? aws_instance.instructor_haproxy[0].public_ip : null
+    secondcp = var.ha ? aws_instance.instructor_secondcp[0].public_ip : null
+    thirdcp  = var.ha ? aws_instance.instructor_thirdcp[0].public_ip : null
   }
 }
 
 output "student_instances" {
   value = {
     for k, student in aws_iam_user.student : student.name => {
-      cp     = aws_instance.student_cp[k].public_ip
-      worker = aws_instance.student_worker[k].public_ip
+      cp       = aws_instance.student_cp[k].public_ip
+      worker   = aws_instance.student_worker[k].public_ip
+      nfs      = var.nfs ? aws_instance.student_nfs[k].public_ip : null
+      haproxy  = var.ha ? aws_instance.student_haproxy[k].public_ip : null
+      secondcp = var.ha ? aws_instance.student_secondcp[k].public_ip : null
+      thirdcp  = var.ha ? aws_instance.student_thirdcp[k].public_ip : null
     }
   }
 }
