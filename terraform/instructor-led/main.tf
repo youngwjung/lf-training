@@ -15,7 +15,7 @@ provider "aws" {
 # Variable
 variable "number_of_stduents" {
   type    = number
-  default = 11
+  default = 0
 }
 
 variable "nfs" {
@@ -25,7 +25,7 @@ variable "nfs" {
 
 variable "ha" {
   type    = bool
-  default = true
+  default = false
 }
 
 # IAM
