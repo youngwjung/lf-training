@@ -91,6 +91,7 @@ resource "aws_route" "internet" {
 # Cloud9
 resource "aws_cloud9_environment_ec2" "instructor" {
   instance_type = "t3.small"
+  image_id      = "resolve:ssm:/aws/service/cloud9/amis/amazonlinux-2-x86_64"
   name          = "instructor"
   owner_arn     = aws_iam_user.instructor.arn
   subnet_id     = aws_subnet.this.id
@@ -110,6 +111,18 @@ resource "aws_cloud9_environment_ec2" "student" {
 }
 
 # EC2
+resource "random_password" "instructor" {
+  length  = 8
+  special = false
+}
+
+resource "random_password" "student" {
+  count = var.number_of_stduents
+
+  length  = 8
+  special = false
+}
+
 resource "aws_security_group" "this" {
   name        = "lab-instance-sg"
   description = "Allow all inbound and outbound traffic"
@@ -159,7 +172,7 @@ resource "aws_instance" "instructor_cp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname cp
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.instructor.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -190,7 +203,7 @@ resource "aws_instance" "student_cp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname cp
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.student[count.index].result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -219,7 +232,7 @@ resource "aws_instance" "instructor_worker" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname worker
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.instructor.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -249,7 +262,7 @@ resource "aws_instance" "student_worker" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname worker
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.student[count.index].result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -279,7 +292,7 @@ resource "aws_instance" "instructor_nfs" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname nfs
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.instructor.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -309,7 +322,7 @@ resource "aws_instance" "student_nfs" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname nfs
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.student[count.index].result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -339,7 +352,7 @@ resource "aws_instance" "instructor_haproxy" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname haproxy
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.instructor.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -369,7 +382,7 @@ resource "aws_instance" "student_haproxy" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname haproxy
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.student[count.index].result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -399,7 +412,7 @@ resource "aws_instance" "instructor_secondcp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname secondcp
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.instructor.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -429,7 +442,7 @@ resource "aws_instance" "student_secondcp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname secondcp
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.student[count.index].result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -459,7 +472,7 @@ resource "aws_instance" "instructor_thirdcp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname thirdcp
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.instructor.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -489,7 +502,7 @@ resource "aws_instance" "student_thirdcp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname thirdcp
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.student[count.index].result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -505,13 +518,23 @@ EOF
 }
 
 # Output
-output "instructor_password" {
+output "instructor_iam_password" {
   value = aws_iam_user_login_profile.instructor.password
 }
 
-output "student_password" {
+output "instructor_vm_password" {
+  value = nonsensitive(random_password.instructor.result)
+}
+
+output "student_iam_password" {
   value = {
     for lp in aws_iam_user_login_profile.student : lp.user => lp.password
+  }
+}
+
+output "student_vm_password" {
+  value = {
+    for idx, rp in random_password.student : "student${idx + 1}" => nonsensitive(rp.result)
   }
 }
 
