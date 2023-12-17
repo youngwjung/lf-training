@@ -15,7 +15,7 @@ provider "aws" {
 # Variable
 variable "nfs" {
   type    = bool
-  default = false
+  default = true
 }
 
 variable "ha" {
@@ -49,6 +49,11 @@ resource "aws_route" "internet" {
 }
 
 # EC2
+resource "random_password" "this" {
+  length  = 8
+  special = false
+}
+
 resource "aws_security_group" "this" {
   name        = "lab-instance-sg"
   description = "Allow all inbound and outbound traffic"
@@ -98,7 +103,7 @@ resource "aws_instance" "cp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname cp
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.this.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -127,7 +132,7 @@ resource "aws_instance" "worker" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname worker
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.this.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -157,7 +162,7 @@ resource "aws_instance" "nfs" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname nfs
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.this.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -187,7 +192,7 @@ resource "aws_instance" "haproxy" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname haproxy
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.this.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -217,7 +222,7 @@ resource "aws_instance" "secondcp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname secondcp
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.this.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -247,7 +252,7 @@ resource "aws_instance" "thirdcp" {
   user_data = <<EOF
 #!/bin/bash
 hostnamectl set-hostname thirdcp
-echo 'root:asdf1234' | chpasswd
+echo "root:${random_password.this.result}" | chpasswd
 sed 's/PasswordAuthentication no/PasswordAuthentication yes/' -i /etc/ssh/sshd_config
 sed 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' -i /etc/ssh/sshd_config
 systemctl restart sshd
@@ -272,4 +277,8 @@ output "instances" {
     secondcp = var.ha ? aws_instance.secondcp[0].public_ip : null
     thirdcp  = var.ha ? aws_instance.thirdcp[0].public_ip : null
   }
+}
+
+output "ssh_password" {
+  value = nonsensitive(random_password.this.result)
 }
